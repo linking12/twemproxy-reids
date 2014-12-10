@@ -1,0 +1,374 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-cn">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>基于Twemproxy的Redis集群方案 - nick hao - 博客园</title>
+<link type="text/css" rel="stylesheet" href="/bundles/blog-common.css?v=my4FYfT2lmqb3sakS-rxSQYr2TpdJ4R7fpviWLuq5wg1"/>
+<link id="MainCss" type="text/css" rel="stylesheet" href="/skins/arrow/bundle-arrow.css?v=pAFc9CTjQ3X6S6IlkhC7h-AHdfI56xopjvGTJOuYoNg1"/>
+<link title="RSS" type="application/rss+xml" rel="alternate" href="http://www.cnblogs.com/haoxinyue/rss"/>
+<link title="RSD" type="application/rsd+xml" rel="EditURI" href="http://www.cnblogs.com/haoxinyue/rsd.xml"/>
+<link type="application/wlwmanifest+xml" rel="wlwmanifest" href="http://www.cnblogs.com/haoxinyue/wlwmanifest.xml"/>
+<script src="http://common.cnblogs.com/script/jquery.js" type="text/javascript"></script>  
+<script type="text/javascript">var currentBlogApp = 'haoxinyue', cb_enable_mathjax=false;</script>
+<script src="/bundles/blog-common.js?v=_F6vMpUraZDFoT85Xf9mf4IazxZUUUCHJBFoubR7iR01" type="text/javascript"></script>
+</head>
+<body>
+<a name="top"></a>
+
+<!--done-->
+<div id="header">
+	
+<!--done-->
+<div class="header">
+	<div class="headerText">
+		<a id="Header1_HeaderTitle" class="headermaintitle" href="http://www.cnblogs.com/haoxinyue/">nick's blog</a><br>
+		
+	</div>
+</div>
+
+</div>
+<div id="mylinks">
+<!--done-->
+<a id="MyLinks1_HomeLink" class="menu" href="http://www.cnblogs.com/">博客园</a>&nbsp;&nbsp;&nbsp;
+<a id="MyLinks1_MyHomeLink" class="menu" href="http://www.cnblogs.com/haoxinyue/">首页</a>&nbsp;&nbsp;&nbsp;
+<a id="MyLinks1_NewPostLink" class="menu" rel="nofollow" href="http://i.cnblogs.com/EditPosts.aspx?opt=1">新随笔</a>&nbsp;&nbsp;&nbsp;
+<a id="MyLinks1_ContactLink" accesskey="9" class="menu" rel="nofollow" href="http://space.cnblogs.com/msg/send/nick+hao">联系</a>&nbsp;&nbsp;&nbsp;
+<a id="MyLinks1_Syndication" class="menu" href="http://www.cnblogs.com/haoxinyue/rss">订阅</a><a id="MyLinks1_XMLLink" href="http://www.cnblogs.com/haoxinyue/rss"><img src="http://www.cnblogs.com/images/xml.gif" alt="订阅" /></a>&nbsp;&nbsp;&nbsp;
+<a id="MyLinks1_Admin" class="menu" rel="nofollow" href="http://i.cnblogs.com/">管理</a>
+</div>
+<div id="mytopmenu">
+	
+		
+<div class="blogStats">随笔 - 34&nbsp;
+文章 - 10&nbsp;评论 - 42&nbsp;trackbacks - 0
+</div>
+	
+</div>
+<div id="leftcontent">
+	
+		<DIV id="leftcontentcontainer">
+			<div id="blog-calendar" style="display:none"></div><script type="text/javascript">loadBlogDefaultCalendar();</script><br>
+			
+<!--done-->
+<div class="newsItem">
+	<div id="blog-news"></div><script type="text/javascript">loadBlogNews();</script>
+</div>
+
+			<div id="blog-sidecolumn"></div><script type="text/javascript">loadBlogSideColumn();</script></DIV>		
+	
+</div>
+<div id="centercontent">
+	
+
+<!--done-->
+<div class = "post">
+	<div class = "postTitle">
+		<h1><a id="cb_post_title_url" class="postTitle2" href="http://www.cnblogs.com/haoxinyue/p/redis.html">基于Twemproxy的Redis集群方案</a></h1>
+	</div>
+	<div id="cnblogs_post_body"><h1>概述</h1>
+<p>由于单台redis服务器的内存管理能力有限，使用过大内存redis服务器的性能急剧下降，且服务器发生故障将直接影响大面积业务。为了获取更好的缓存性能及扩展型，我们将需要搭建redis集群来满足需求。因redis 3.0 beta支持的集群功能不适合生产环境的使用，所以我们采用twitter正在使用的twemproxy来搭建redis缓存服务器集群，目前用户包括Pinterest、Tumblr、Twitter、Vine、Kiip、Wuaki.tv、Wanelo、Kontera、Wikimedia、Bright、56.com、Snapchat、Digg、Gawkermedia、3scale.net等。</p>
+<p>Twemproxy是memcached和redis协议的代理服务器，并能有效减少大量连接对redis服务器的性能影响，它提供的主要特性如下:</p>
+<p><a href="http://images.cnitblog.com/blog/15700/201410/082030469832667.png"><img style="display: inline; border-width: 0px;" title="image" src="http://images.cnitblog.com/blog/15700/201410/082030491081283.png" alt="image" width="562" height="308" border="0" /></a></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h1>集群架构</h1>
+<p><a href="http://images.cnitblog.com/blog/15700/201410/082030507659055.png"><img style="display: inline; border-width: 0px;" title="image" src="http://images.cnitblog.com/blog/15700/201410/082030520932028.png" alt="image" width="411" height="387" border="0" /></a></p>
+<p>&nbsp;</p>
+<h1>安装Redis</h1>
+<p>有三台服务器，一台COS1安装twemproxy，另外两台COS2，COS3安装redis。</p>
+<p>&nbsp;</p>
+<ol>
+<li>下载最新安装包：redis-2.8.9.tar.gz ， tcl-8.5.7-6.el6.x86_64.rpm ，nutcracker-0.3.0.tar.gz</li>
+<li><a href="http://images.cnitblog.com/blog/15700/201410/082033552806294.png"><img style="display: inline; border: 0px;" title="image" src="http://images.cnitblog.com/blog/15700/201410/082033571717137.png" alt="image" width="443" height="96" border="0" /></a></li>
+<li>安装必要组件rpm：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> yum install gcc</span>
+[root@COS2 src]<span style="color: #008000;">#</span><span style="color: #008000;"> rpm -ivh tcl-8.5.7-6.el6.x86_64.rpm</span></pre>
+</div>
+</li>
+<li>安装Redis：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 src]<span style="color: #008000;">#</span><span style="color: #008000;"> tar xvf redis-2.8.9.tar.gz</span>
+[root@COS2 src]<span style="color: #008000;">#</span><span style="color: #008000;"> cd redis-2.8.9</span>
+[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> make</span>
+<span style="color: #000000;">&hellip;
+Hint: To run 'make test' is a good idea ;)
+make[</span>1]: Leaving directory `/usr/local/src/redis-2.8.9/<span style="color: #000000;">src'
+
+[root</span>@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> make test</span>
+All tests passed without errors!<span style="color: #000000;">
+
+Cleanup: may take some time... OK
+make[</span>1]: Leaving directory `/usr/local/src/redis-2.8.9/<span style="color: #000000;">src'
+[root</span>@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> make install</span>
+[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> cd /usr/local/bin/</span>
+[root@COS2 bin]<span style="color: #008000;">#</span><span style="color: #008000;"> ll</span>
+total 13908
+-rwxr-xr-x. 1 root root 4170264 Apr 26 11:51 redis-<span style="color: #000000;">benchmark
+</span>-rwxr-xr-x. 1 root root   22185 Apr 26 11:51 redis-check-<span style="color: #000000;">aof
+</span>-rwxr-xr-x. 1 root root   45419 Apr 26 11:51 redis-check-<span style="color: #000000;">dump
+</span>-rwxr-xr-x. 1 root root 4263471 Apr 26 11:51 redis-<span style="color: #000000;">cli
+</span>-rwxr-xr-x. 1 root root 5726791 Apr 26 11:51 redis-server</pre>
+</div>
+</li>
+<li>编辑redis配置文件：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> cp redis.conf /etc/</span>
+[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> vim /etc/red</span>
+redhat-<span style="color: #000000;">release  redis.conf      
+[root</span>@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> vim /etc/redis.conf</span>
+<span style="color: #000000;">
+把里面的
+daemonize no  修改成 daemonize yes</span></pre>
+</div>
+</li>
+<li>启动redis服务：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-server /etc/redis.conf</span></pre>
+</div>
+</li>
+<li>测试redis服务：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 redis-2.8.9]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-cli </span>
+127.0.0.1:6379&gt;<span style="color: #000000;"> set kin kin
+OK
+</span>127.0.0.1:6379&gt; get kin</pre>
+</div>
+</li>
+<li>同样的步骤安装其他redis服务器。</li>
+</ol>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h1>安装twemproxy</h1>
+<ol>
+<li>安装twemproxy：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 src]<span style="color: #008000;">#</span><span style="color: #008000;"> tar xvf nutcracker-0.3.0.tar.gz</span>
+[root@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> cd nutcracker-0.3.0</span>
+[root@COS1 src]<span style="color: #008000;">#</span><span style="color: #008000;">./configure </span>
+[root@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> make &amp;&amp; make install</span></pre>
+</div>
+</li>
+<li>编辑配置文件：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 conf]<span style="color: #008000;">#</span><span style="color: #008000;"> cd /usr/local/src/nutcracker-0.3.0/conf</span>
+[root@COS1 conf]<span style="color: #008000;">#</span><span style="color: #008000;"> cp nutcracker.yml /etc/</span>
+[root@COS1 conf]<span style="color: #008000;">#</span><span style="color: #008000;"> vim /etc/nutcracker.yml</span>
+<span style="color: #000000;">alpha:
+  listen: </span>0.0.0.0:22121<span style="color: #000000;">
+  hash: fnv1a_64
+  distribution: ketama
+  auto_eject_hosts: </span><span style="color: #0000ff;">true</span><span style="color: #000000;">
+  redis: </span><span style="color: #0000ff;">true</span><span style="color: #000000;">
+  server_retry_timeout: </span>2000<span style="color: #000000;">
+  server_failure_limit: </span>1<span style="color: #000000;">
+  servers: </span>--<span style="color: #000000;">两台redis服务器的地址和端口
+   </span>- 10.23.22.240:6379:1   
+   - 10.23.22.241:6379:1</pre>
+</div>
+</li>
+<li>测试配置文件：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> nutcracker -t /etc/nutcracker.yml </span>
+nutcracker: configuration file 'conf/nutcracker.yml' syntax is ok</pre>
+</div>
+</li>
+<li>启动twemproxy：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> nutcracker  --help</span>
+This is nutcracker-0.3.0<span style="color: #000000;">
+
+Usage: nutcracker [</span>-?hVdDt] [-v verbosity level] [-<span style="color: #000000;">o output file]
+                  [</span>-c conf file] [-s stats port] [-<span style="color: #000000;">a stats addr]
+                  [</span>-i stats interval] [-p pid file] [-<span style="color: #000000;">m mbuf size]
+
+Options:
+  </span>-h, --<span style="color: #000000;">help             : this help                           
+  </span>-V, --<span style="color: #000000;">version          : show version and exit                 
+  </span>-t, --test-conf        : test configuration <span style="color: #0000ff;">for</span><span style="color: #000000;"> syntax errors and exit 
+  </span>-d, --<span style="color: #000000;">daemonize      : run as a daemon                    
+  </span>-D, --describe-<span style="color: #000000;">stats   : print stats description and exit
+  </span>-v, --verbosity=N      : set logging level (<span style="color: #0000ff;">default</span>: 5, min: 0, max: 11<span style="color: #000000;">)
+  </span>-o, --output=S         : set logging file (<span style="color: #0000ff;">default</span><span style="color: #000000;">: stderr)
+  </span>-c, --conf<span style="color: #008080;">-file</span>=S      : set configuration file (<span style="color: #0000ff;">default</span>: conf/nutcracker.yml) <span style="color: #008000;">#</span><span style="color: #008000;">配置</span>
+  -s, --stats-port=N     : set stats monitoring port (<span style="color: #0000ff;">default</span>: 22222<span style="color: #000000;">)
+  </span>-a, --stats-addr=S     : set stats monitoring ip (<span style="color: #0000ff;">default</span>: 0.0.0.0<span style="color: #000000;">)
+  </span>-i, --stats-interval=N : set stats aggregation interval <span style="color: #0000ff;">in</span> msec (<span style="color: #0000ff;">default</span>: 30000<span style="color: #000000;"> msec)
+  </span>-p, --pid<span style="color: #008080;">-file</span>=S       : set pid file (<span style="color: #0000ff;">default</span><span style="color: #000000;">: off)
+  </span>-m, --mbuf-size=N      : set size of mbuf chunk <span style="color: #0000ff;">in</span> bytes (<span style="color: #0000ff;">default</span>: 16384<span style="color: #000000;"> bytes)
+[root</span>@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> nutcracker -d -c /etc/nutcracker.yml</span>
+[root@COS1 nutcracker-0.3.0]<span style="color: #008000;">#</span><span style="color: #008000;"> ps -ef|grep nutcracker</span>
+root     15358     1  0 02:40 ?        00:00:00 nutcracker -d -c /etc/nutcracker.yml</pre>
+</div>
+</li>
+<li>测试twemproxy：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 ~]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-cli -p 22121</span>
+127.0.0.1:22121&gt;<span style="color: #000000;"> get kin
+</span><span style="color: #800000;">"</span><span style="color: #800000;">kin</span><span style="color: #800000;">"</span>
+127.0.0.1:22121&gt;<span style="color: #000000;"> set kin king
+OK
+</span>127.0.0.1:22121&gt;<span style="color: #000000;"> get kin
+</span><span style="color: #800000;">"</span><span style="color: #800000;">king</span><span style="color: #800000;">"</span></pre>
+</div>
+</li>
+</ol>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h1>性能测试</h1>
+<p>这里使用redis自带的redis-benchmark进行简单的性能测试，测试结果如下:</p>
+<ol>
+<li>Set测试：<ol>
+<li>通过twemproxy测试：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 src]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-benchmark -h 10.23.22.240 -p 22121 -c 100 -t set -d 100 -l &ndash;q</span></pre>
+<pre></pre>
+<pre>SET: 38167.94 requests per second</pre>
+</div>
+</li>
+<li>直接对后端redis测试：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 ~]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-benchmark -h 10.23.22.241 -p 6379 -c 100 -t set -d 100 -l &ndash;q</span></pre>
+<pre></pre>
+<pre>SET: 53191.49 requests per second</pre>
+</div>
+</li>
+</ol></li>
+<li>Get测试：<ol>
+<li>通过twemproxy测试：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS1 src]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-benchmark -h 10.23.22.240 -p 22121 -c 100 -t get -d 100 -l -q</span>
+GET: 37453.18 requests per second</pre>
+</div>
+</li>
+<li>直接对后端redis测试：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 ~]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-benchmark -h 10.23.22.241 -p 6379 -c 100 -t get -d 100 -l -q</span>
+GET: 62111.80 requests per second</pre>
+</div>
+</li>
+</ol></li>
+<li>查看键值分布：
+<div class="cnblogs_code" style="background-color: #f5f5f5; border: #cccccc 1px solid; padding: 5px;">
+<pre>[root@COS2 ~]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-cli info|grep db0</span>
+db0:keys=51483,expires=0,avg_ttl=0<span style="color: #000000;">
+
+[root</span>@COS3 ~]<span style="color: #008000;">#</span><span style="color: #008000;"> redis-cli info|grep db0</span>
+db0:keys=48525,expires=0,avg_ttl=0</pre>
+</div>
+</li>
+</ol>
+<p>测试结果:以基本的set get命令通过twemproxy性能有所下降;通过twemproxy分布基本平均。测试数据以业务测试为准。</p></div><div id="MySignature"></div>
+<div class="clear"></div>
+<div id="blog_post_info_block">
+<div id="BlogPostCategory"></div>
+<div id="EntryTag"></div>
+<div id="blog_post_info">
+</div>
+<div class="clear"></div>
+<div id="post_next_prev"></div>
+</div>
+
+
+	<div class = "postDesc">posted on <span id="post-date">2014-10-08 20:36</span> <a href='http://www.cnblogs.com/haoxinyue/'>nick hao</a> 阅读(<span id="post_view_count">...</span>) 评论(<span id="post_comment_count">...</span>)  <a href ="http://i.cnblogs.com/EditPosts.aspx?postid=4011993" rel="nofollow">编辑</a> <a href="#" onclick="AddToWz(4011993);return false;">收藏</a></div>
+</div>
+<script type="text/javascript">var allowComments=true,isLogined=false,cb_blogId=19258,cb_entryId=4011993,cb_blogApp=currentBlogApp,cb_blogUserGuid='8157360b-63cf-dd11-9e4d-001cf0cd104b',cb_entryCreatedDate='2014/10/8 20:36:00';loadViewCount(cb_entryId);</script>
+
+<a name="!comments"></a><div id="blog-comments-placeholder"></div><script type="text/javascript">var commentManager = new blogCommentManager();commentManager.renderComments(0);</script>
+<div id="comment_form" class="commentform">
+<a name="commentform"></a>
+<div id="divCommentShow"></div>
+<div id="comment_nav"><span id="span_refresh_tips"></span><a href="javascript:void(0);" id="lnk_RefreshComments" onclick="return RefreshCommentList();">刷新评论</a><a href="#" onclick="return RefreshPage();">刷新页面</a><a href="#top">返回顶部</a></div>
+<div id="comment_form_container"></div>
+<div class="ad_text_commentbox" id="ad_text_under_commentbox"></div>
+<div id="site_nav_under"><a href="http://www.cnblogs.com/" target="_blank" title="开发者的网上家园">博客园首页</a><a href="http://q.cnblogs.com/" target="_blank" title="程序员问答社区">博问</a><a href="http://news.cnblogs.com/" target="_blank" title="IT新闻">新闻</a><a href="http://home.cnblogs.com/ing/" target="_blank">闪存</a><a href="http://job.cnblogs.com/" target="_blank">程序员招聘</a><a href="http://kb.cnblogs.com/" target="_blank">知识库</a></div>
+<div id="opt_under_post"></div>
+<script type="text/javascript">
+    var enableGoogleAd = canShowAdsense(); var googletag = googletag || {}; googletag.cmd = googletag.cmd || [];
+    fixPostBodyFormat();
+</script>
+<div id="ad_under_post_holder">
+<script type='text/javascript'>
+    var googletag = googletag || {};
+    googletag.cmd = googletag.cmd || [];
+    (function () {
+        if (enableGoogleAd) {
+            var gads = document.createElement('script');
+            gads.async = true;
+            gads.type = 'text/javascript';
+            var useSSL = 'https:' == document.location.protocol;
+            gads.src = (useSSL ? 'https:' : 'http:') + '//www.googletagservices.com/tag/js/gpt.js';
+            var node = document.getElementsByTagName('script')[0];
+            node.parentNode.insertBefore(gads, node);
+        }
+    })();
+</script>
+<script type='text/javascript'>
+    try {
+        if (enableGoogleAd) {
+            googletag.cmd.push(function () {
+                googletag.defineSlot('/1090369/cnblogs_blogpost_C1_sitehome', [300, 250], 'div-gpt-ad-1346480159711-0').addService(googletag.pubads());
+                googletag.defineSlot('/1090369/cnblogs_blogpost_C2', [468, 60], 'div-gpt-ad-1410860226396-0').addService(googletag.pubads());
+                googletag.pubads().enableSingleRequest();
+                googletag.enableServices();
+            });
+        };
+    } catch (e) { }
+</script>
+<div id="google_ad_c1" class="c_ad_block">
+    <div id='div-gpt-ad-1346480159711-0' style='width:300px; height:250px;'>
+    <script type='text/javascript'>
+        try {
+            if (enableGoogleAd) {
+                googletag.cmd.push(function () { googletag.display('div-gpt-ad-1346480159711-0'); });            
+            } else {
+                $('#div-gpt-ad-1346480159711-0').hide();
+            }
+    } catch (e) { }
+    </script>
+    </div>
+</div>
+</div>
+<div id="under_post_news"></div>
+<div id="google_ad_c2" class="c_ad_block">
+<div id='div-gpt-ad-1410860226396-0' style='width:468px; height:60px;'>
+<script type='text/javascript'>
+try {
+    if (enableGoogleAd) {
+        googletag.cmd.push(function () { googletag.display('div-gpt-ad-1410860226396-0'); });
+    } else {
+        $('#div-gpt-ad-1346480159711-0').hide();
+    }
+} catch (e) { }
+</script>
+</div>
+</div>
+<div id="under_post_kb"></div>
+<div id="HistoryToday" class="c_ad_block"></div>
+<script type="text/javascript">
+$(function () {
+    loadNewsAndKb();
+    loadBlogSignature();
+    LoadPostInfoBlock(cb_blogId, cb_entryId, cb_blogApp, cb_blogUserGuid);
+    GetPrevNextPost(cb_entryId, cb_blogId, cb_entryCreatedDate);
+    loadOptUnderPost();
+    GetHistoryToday(cb_blogId, cb_blogApp, cb_entryCreatedDate);
+    setTimeout(function () { incrementViewCount(cb_entryId); }, 200);
+});
+</script>
+</div>
+
+	
+<!--done-->
+<div class="footer">
+	
+	Copyright &copy;2014 nick hao Powered by: <a href="http://www.cnblogs.com" class=footerlink>博客园</a> 模板提供：<a href="http://blog.hjenglish.com" class=footerlink>沪江博客</a><br>
+</div>
+</div>
+
+
+
+</body>
+</html>
